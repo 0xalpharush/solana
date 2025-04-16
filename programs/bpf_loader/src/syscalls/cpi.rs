@@ -287,7 +287,7 @@ impl<'a> CallerAccount<'a> {
 
     fn realloc_region(
         &self,
-        memory_mapping: &'a MemoryMapping<'_>,
+        memory_mapping: &'a mut MemoryMapping<'_>,
         is_loader_deprecated: bool,
     ) -> Result<Option<(usize, &'a MemoryRegion)>, Error> {
         account_realloc_region(
@@ -1183,26 +1183,21 @@ fn update_caller_account_perms(
         let mut new_region = if writable && !shared {
             MemoryRegion::new_writable(
                 unsafe {
-                    std::slice::from_raw_parts_mut(
-                        region.host_addr.get() as *mut u8,
-                        region.len as usize,
-                    )
+                    std::slice::from_raw_parts_mut(region.host_addr as *mut u8, region.len as usize)
                 },
                 region.vm_addr,
             )
         } else {
             MemoryRegion::new_readonly(
                 unsafe {
-                    std::slice::from_raw_parts(
-                        region.host_addr.get() as *const u8,
-                        region.len as usize,
-                    )
+                    std::slice::from_raw_parts(region.host_addr as *const u8, region.len as usize)
                 },
                 region.vm_addr,
             )
         };
         if writable && shared {
-            new_region.cow_callback_payload = callee_account.get_index_in_transaction() as u32;
+            new_region.access_violation_handler_payload =
+                Some(callee_account.get_index_in_transaction());
         }
         memory_mapping.replace_region(region_index, new_region)?;
     }
@@ -1216,20 +1211,14 @@ fn update_caller_account_perms(
         let new_region = if callee_account.can_data_be_changed().is_ok() {
             MemoryRegion::new_writable(
                 unsafe {
-                    std::slice::from_raw_parts_mut(
-                        region.host_addr.get() as *mut u8,
-                        region.len as usize,
-                    )
+                    std::slice::from_raw_parts_mut(region.host_addr as *mut u8, region.len as usize)
                 },
                 region.vm_addr,
             )
         } else {
             MemoryRegion::new_readonly(
                 unsafe {
-                    std::slice::from_raw_parts(
-                        region.host_addr.get() as *const u8,
-                        region.len as usize,
-                    )
+                    std::slice::from_raw_parts(region.host_addr as *const u8, region.len as usize)
                 },
                 region.vm_addr,
             )
@@ -1290,8 +1279,8 @@ fn update_caller_account(
             // because of BorrowedAccount::make_data_mut or by a program that uses the
             // AccountSharedData API directly (deprecated).
             let callee_ptr = callee_account.get_data().as_ptr() as u64;
-            if region.host_addr.get() != callee_ptr {
-                region.host_addr.set(callee_ptr);
+            if region.host_addr != callee_ptr {
+                region.host_addr = callee_ptr;
                 zero_all_mapped_spare_capacity = true;
             }
         }
@@ -1353,9 +1342,10 @@ fn update_caller_account(
                     let (_realloc_region_index, realloc_region) = caller_account
                         .realloc_region(memory_mapping, is_loader_deprecated)?
                         .unwrap(); // unwrapping here is fine, we already asserted !is_loader_deprecated
-                    let original_state = realloc_region.writable.replace(true);
+                    let original_state = realloc_region.writable;
+                    realloc_region.writable = true;
                     defer! {
-                        realloc_region.writable.set(original_state);
+                        realloc_region.writable = original_state;
                     };
 
                     // We need to zero the unused space in the realloc region, starting after the
@@ -1462,9 +1452,10 @@ fn update_caller_account(
                 let (_realloc_region_index, realloc_region) = caller_account
                     .realloc_region(memory_mapping, is_loader_deprecated)?
                     .unwrap(); // unwrapping here is fine, we asserted !is_loader_deprecated
-                let original_state = realloc_region.writable.replace(true);
+                let original_state = realloc_region.writable;
+                realloc_region.writable = true;
                 defer! {
-                    realloc_region.writable.set(original_state);
+                    realloc_region.writable = original_state;
                 };
 
                 translate_slice_mut::<u8>(
@@ -1501,7 +1492,7 @@ fn update_caller_account(
 }
 
 fn account_data_region<'a>(
-    memory_mapping: &'a MemoryMapping<'_>,
+    memory_mapping: &'a mut MemoryMapping<'_>,
     vm_data_addr: u64,
     original_data_len: usize,
 ) -> Result<Option<(usize, &'a MemoryRegion)>, Error> {
@@ -1511,14 +1502,16 @@ fn account_data_region<'a>(
 
     // We can trust vm_data_addr to point to the correct region because we
     // enforce that in CallerAccount::from_(sol_)account_info.
-    let (data_region_index, data_region) = memory_mapping.region(AccessType::Load, vm_data_addr)?;
+    let (data_region_index, data_region) = memory_mapping
+        .find_region(vm_data_addr)
+        .ok_or_else(|| Box::new(InstructionError::MissingAccount))?;
     // vm_data_addr must always point to the beginning of the region
     debug_assert_eq!(data_region.vm_addr, vm_data_addr);
     Ok(Some((data_region_index, data_region)))
 }
 
 fn account_realloc_region<'a>(
-    memory_mapping: &'a MemoryMapping<'_>,
+    memory_mapping: &'a mut MemoryMapping<'_>,
     vm_data_addr: u64,
     original_data_len: usize,
     is_loader_deprecated: bool,
@@ -1528,13 +1521,14 @@ fn account_realloc_region<'a>(
     }
 
     let realloc_vm_addr = vm_data_addr.saturating_add(original_data_len as u64);
-    let (realloc_region_index, realloc_region) =
-        memory_mapping.region(AccessType::Load, realloc_vm_addr)?;
+    let (realloc_region_index, realloc_region) = memory_mapping
+        .find_region(realloc_vm_addr)
+        .ok_or_else(|| Box::new(InstructionError::MissingAccount))?;
     debug_assert_eq!(realloc_region.vm_addr, realloc_vm_addr);
     debug_assert!((MAX_PERMITTED_DATA_INCREASE
         ..MAX_PERMITTED_DATA_INCREASE.saturating_add(BPF_ALIGN_OF_U128))
         .contains(&(realloc_region.len as usize)));
-    debug_assert_eq!(realloc_region.cow_callback_payload, u32::MAX);
+    debug_assert_eq!(realloc_region.access_violation_handler_payload, None);
     Ok(Some((realloc_region_index, realloc_region)))
 }
 
@@ -1998,9 +1992,14 @@ mod tests {
 
                 // check that the caller account data pointer always matches the callee account data pointer
                 assert_eq!(
-                    translate_slice::<u8>(&memory_mapping, caller_account.vm_data_addr, 1, true,)
-                        .unwrap()
-                        .as_ptr(),
+                    translate_slice::<u8>(
+                        &mut memory_mapping,
+                        caller_account.vm_data_addr,
+                        1,
+                        true,
+                    )
+                    .unwrap()
+                    .as_ptr(),
                     callee_account.get_data().as_ptr()
                 );
 
@@ -2011,7 +2010,7 @@ mod tests {
                 assert_eq!(data_len, serialized_len());
 
                 let realloc_area = translate_slice::<u8>(
-                    &memory_mapping,
+                    &mut memory_mapping,
                     caller_account
                         .vm_data_addr
                         .saturating_add(caller_account.original_data_len as u64),
@@ -2163,7 +2162,7 @@ mod tests {
         assert_eq!(callee_account.get_data().len(), 3);
         assert!(callee_account.capacity() >= caller_account.original_data_len);
         let data = translate_slice::<u8>(
-            &memory_mapping,
+            &mut memory_mapping,
             caller_account.vm_data_addr,
             callee_account.get_data().len() as u64,
             true,
@@ -2198,7 +2197,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -2214,7 +2213,7 @@ mod tests {
 
         update_callee_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &caller_account,
             callee_account,
@@ -2254,7 +2253,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -2270,7 +2269,7 @@ mod tests {
 
         update_callee_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &caller_account,
             callee_account,
@@ -2289,7 +2288,7 @@ mod tests {
         caller_account.owner = &mut owner;
         update_callee_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &caller_account,
             callee_account,
@@ -2327,7 +2326,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -2342,7 +2341,7 @@ mod tests {
         assert_matches!(
             update_callee_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &caller_account,
                 callee_account,
@@ -2360,7 +2359,7 @@ mod tests {
         assert_matches!(
             update_callee_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &caller_account,
                 callee_account,
@@ -2378,7 +2377,7 @@ mod tests {
         assert_matches!(
             update_callee_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &caller_account,
                 callee_account,
@@ -2450,7 +2449,7 @@ mod tests {
             *caller_account.ref_to_len_in_vm = len as u64;
             update_callee_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &caller_account,
                 callee_account,
@@ -2469,7 +2468,7 @@ mod tests {
         caller_account.owner = &mut owner;
         update_callee_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &caller_account,
             callee_account,
