@@ -144,7 +144,7 @@ fn memmove(
     dst_addr: u64,
     src_addr: u64,
     n: u64,
-    memory_mapping: &MemoryMapping,
+    memory_mapping: &mut MemoryMapping,
 ) -> Result<u64, Error> {
     let dst_ptr = translate_slice_mut::<u8>(
         memory_mapping,

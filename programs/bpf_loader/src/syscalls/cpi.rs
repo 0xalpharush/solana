@@ -64,7 +64,7 @@ impl<'a> CallerAccount<'a> {
     // Create a CallerAccount given an AccountInfo.
     fn from_account_info(
         invoke_context: &InvokeContext,
-        memory_mapping: &MemoryMapping<'_>,
+        memory_mapping: &mut MemoryMapping<'_>,
         _vm_addr: u64,
         account_info: &AccountInfo,
         account_metadata: &SerializedAccountMetadata,
@@ -196,7 +196,7 @@ impl<'a> CallerAccount<'a> {
     // Create a CallerAccount given a SolAccountInfo.
     fn from_sol_account_info(
         invoke_context: &InvokeContext,
-        memory_mapping: &MemoryMapping<'_>,
+        memory_mapping: &mut MemoryMapping<'_>,
         vm_addr: u64,
         account_info: &SolAccountInfo,
         account_metadata: &SerializedAccountMetadata,
@@ -320,7 +320,7 @@ trait SyscallInvokeSigned {
         account_infos_addr: u64,
         account_infos_len: u64,
         is_loader_deprecated: bool,
-        memory_mapping: &MemoryMapping<'_>,
+        memory_mapping: &mut MemoryMapping<'_>,
         invoke_context: &mut InvokeContext,
     ) -> Result<Vec<TranslatedAccount<'a>>, Error>;
     fn translate_signers(
@@ -419,7 +419,7 @@ impl SyscallInvokeSigned for SyscallInvokeSignedRust {
         account_infos_addr: u64,
         account_infos_len: u64,
         is_loader_deprecated: bool,
-        memory_mapping: &MemoryMapping<'_>,
+        memory_mapping: &mut MemoryMapping<'_>,
         invoke_context: &mut InvokeContext,
     ) -> Result<Vec<TranslatedAccount<'a>>, Error> {
         let (account_infos, account_info_keys) = translate_account_infos(
@@ -641,7 +641,7 @@ impl SyscallInvokeSigned for SyscallInvokeSignedC {
         account_infos_addr: u64,
         account_infos_len: u64,
         is_loader_deprecated: bool,
-        memory_mapping: &MemoryMapping<'_>,
+        memory_mapping: &mut MemoryMapping<'_>,
         invoke_context: &mut InvokeContext,
     ) -> Result<Vec<TranslatedAccount<'a>>, Error> {
         let (account_infos, account_info_keys) = translate_account_infos(
@@ -769,13 +769,13 @@ fn translate_and_update_accounts<'a, T, F>(
     account_infos_addr: u64,
     is_loader_deprecated: bool,
     invoke_context: &mut InvokeContext,
-    memory_mapping: &MemoryMapping<'_>,
+    memory_mapping: &mut MemoryMapping<'_>,
     do_translate: F,
 ) -> Result<Vec<TranslatedAccount<'a>>, Error>
 where
     F: Fn(
         &InvokeContext,
-        &MemoryMapping<'_>,
+        &mut MemoryMapping<'_>,
         u64,
         &T,
         &SerializedAccountMetadata,
@@ -1192,8 +1192,8 @@ fn update_caller_account_region(
 // changes.
 fn update_caller_account(
     invoke_context: &InvokeContext,
-    memory_mapping: &MemoryMapping<'_>,
-    _is_loader_deprecated: bool,
+    memory_mapping: &mut MemoryMapping<'_>,
+    is_loader_deprecated: bool,
     caller_account: &mut CallerAccount<'_>,
     callee_account: &mut BorrowedAccount<'_>,
     direct_mapping: bool,
@@ -1500,13 +1500,14 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(vec![region], &config, SBPFVersion::V3).unwrap();
+        let mut memory_mapping =
+            MemoryMapping::new(vec![region], &config, SBPFVersion::V3).unwrap();
 
         let account_info = translate_type::<AccountInfo>(&memory_mapping, vm_addr, false).unwrap();
 
         let caller_account = CallerAccount::from_account_info(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             vm_addr,
             account_info,
             &account_metadata,
@@ -1547,7 +1548,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -1565,7 +1566,7 @@ mod tests {
 
         update_caller_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &mut caller_account,
             &mut callee_account,
@@ -1605,7 +1606,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -1633,7 +1634,7 @@ mod tests {
 
             update_caller_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &mut caller_account,
                 &mut callee_account,
@@ -1658,7 +1659,7 @@ mod tests {
             .unwrap();
         update_caller_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &mut caller_account,
             &mut callee_account,
@@ -1675,7 +1676,7 @@ mod tests {
         assert_matches!(
             update_caller_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &mut caller_account,
                 &mut callee_account,
@@ -1691,7 +1692,7 @@ mod tests {
             .unwrap();
         update_caller_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &mut caller_account,
             &mut callee_account,
@@ -1730,7 +1731,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -1763,7 +1764,7 @@ mod tests {
 
                 update_caller_account(
                     &invoke_context,
-                    &memory_mapping,
+                    &mut memory_mapping,
                     false,
                     &mut caller_account,
                     &mut callee_account,
@@ -1834,7 +1835,7 @@ mod tests {
             .unwrap();
         update_caller_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &mut caller_account,
             &mut callee_account,
@@ -1853,7 +1854,7 @@ mod tests {
         assert_matches!(
             update_caller_account(
                 &invoke_context,
-                &memory_mapping,
+                &mut memory_mapping,
                 false,
                 &mut caller_account,
                 &mut callee_account,
@@ -1869,7 +1870,7 @@ mod tests {
             .unwrap();
         update_caller_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &mut caller_account,
             &mut callee_account,
@@ -1907,7 +1908,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -1932,7 +1933,7 @@ mod tests {
 
         update_caller_account(
             &invoke_context,
-            &memory_mapping,
+            &mut memory_mapping,
             false,
             &mut caller_account,
             &mut callee_account,
@@ -2195,7 +2196,7 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(
+        let mut memory_mapping = MemoryMapping::new(
             mock_caller_account.regions.split_off(0),
             &config,
             SBPFVersion::V3,
@@ -2212,7 +2213,7 @@ mod tests {
         callee_account.get_data_mut().unwrap();
 
         let serialized_data = translate_slice_mut::<u8>(
-            &memory_mapping,
+            &mut memory_mapping,
             caller_account
                 .vm_data_addr
                 .saturating_add(caller_account.original_data_len as u64),
@@ -2276,7 +2277,8 @@ mod tests {
             aligned_memory_mapping: false,
             ..Config::default()
         };
-        let memory_mapping = MemoryMapping::new(vec![region], &config, SBPFVersion::V3).unwrap();
+        let mut memory_mapping =
+            MemoryMapping::new(vec![region], &config, SBPFVersion::V3).unwrap();
 
         mock_invoke_context!(
             invoke_context,
@@ -2309,7 +2311,7 @@ mod tests {
             vm_addr,
             1,
             false,
-            &memory_mapping,
+            &mut memory_mapping,
             &mut invoke_context,
         )
         .unwrap();

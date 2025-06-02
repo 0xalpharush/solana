@@ -277,7 +277,7 @@ impl<T> VmSlice<T> {
 
     pub fn translate_mut(
         &mut self,
-        memory_mapping: &MemoryMapping,
+        memory_mapping: &mut MemoryMapping,
         check_aligned: bool,
     ) -> Result<&mut [T], Error> {
         translate_slice_mut::<T>(memory_mapping, self.ptr, self.len, check_aligned)
@@ -630,7 +630,7 @@ macro_rules! translate_slice_inner {
 }
 
 fn translate_type_mut<'a, T>(
-    memory_mapping: &MemoryMapping,
+    memory_mapping: &mut MemoryMapping,
     vm_addr: u64,
     check_aligned: bool,
 ) -> Result<&'a mut T, Error> {
@@ -646,7 +646,7 @@ fn translate_type<'a, T>(
 }
 
 fn translate_slice_mut<'a, T>(
-    memory_mapping: &MemoryMapping,
+    memory_mapping: &mut MemoryMapping,
     vm_addr: u64,
     len: u64,
     check_aligned: bool,
@@ -4442,7 +4442,7 @@ mod tests {
         )
         .unwrap();
         let processed_sibling_instruction = translate_type_mut::<ProcessedSiblingInstruction>(
-            &memory_mapping,
+            &mut memory_mapping,
             VM_BASE_ADDRESS,
             true,
         )
@@ -4450,20 +4450,20 @@ mod tests {
         processed_sibling_instruction.data_len = 1;
         processed_sibling_instruction.accounts_len = 1;
         let program_id = translate_type_mut::<Pubkey>(
-            &memory_mapping,
+            &mut memory_mapping,
             VM_BASE_ADDRESS.saturating_add(PROGRAM_ID_OFFSET as u64),
             true,
         )
         .unwrap();
         let data = translate_slice_mut::<u8>(
-            &memory_mapping,
+            &mut memory_mapping,
             VM_BASE_ADDRESS.saturating_add(DATA_OFFSET as u64),
             processed_sibling_instruction.data_len,
             true,
         )
         .unwrap();
         let accounts = translate_slice_mut::<AccountMeta>(
-            &memory_mapping,
+            &mut memory_mapping,
             VM_BASE_ADDRESS.saturating_add(ACCOUNTS_OFFSET as u64),
             processed_sibling_instruction.accounts_len,
             true,
