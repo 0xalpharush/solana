@@ -587,18 +587,19 @@ fn address_is_aligned<T>(address: u64) -> bool {
 }
 
 macro_rules! translate_inner {
-    ($memory_mapping:expr, $access_type:expr, $vm_addr:expr, $len:expr $(,)?) => {
+    ($memory_mapping:expr, $map:tt, $access_type:expr, $vm_addr:expr, $len:expr $(,)?) => {
         Result::<u64, Error>::from(
             $memory_mapping
-                .map($access_type, $vm_addr, $len)
+                .$map($access_type, $vm_addr, $len)
                 .map_err(|err| err.into()),
         )
     };
 }
 macro_rules! translate_type_inner {
-    ($memory_mapping:expr, $access_type:expr, $vm_addr:expr, $T:ty, $check_aligned:expr $(,)?) => {{
+    ($memory_mapping:expr, $map:tt, $access_type:expr, $vm_addr:expr, $T:ty, $check_aligned:expr $(,)?) => {{
         let host_addr = translate_inner!(
             $memory_mapping,
+            $map,
             $access_type,
             $vm_addr,
             size_of::<$T>() as u64
@@ -613,7 +614,7 @@ macro_rules! translate_type_inner {
     }};
 }
 macro_rules! translate_slice_inner {
-    ($memory_mapping:expr, $access_type:expr, $vm_addr:expr, $len:expr, $T:ty, $check_aligned:expr $(,)?) => {{
+    ($memory_mapping:expr, $map:tt, $access_type:expr, $vm_addr:expr, $len:expr, $T:ty, $check_aligned:expr $(,)?) => {{
         if $len == 0 {
             return Ok(&mut []);
         }
@@ -621,7 +622,8 @@ macro_rules! translate_slice_inner {
         if isize::try_from(total_size).is_err() {
             return Err(SyscallError::InvalidLength.into());
         }
-        let host_addr = translate_inner!($memory_mapping, $access_type, $vm_addr, total_size)?;
+        let host_addr =
+            translate_inner!($memory_mapping, $map, $access_type, $vm_addr, total_size)?;
         if $check_aligned && !address_is_aligned::<$T>(host_addr) {
             return Err(SyscallError::UnalignedPointer.into());
         }
@@ -634,15 +636,29 @@ fn translate_type_mut<'a, T>(
     vm_addr: u64,
     check_aligned: bool,
 ) -> Result<&'a mut T, Error> {
-    translate_type_inner!(memory_mapping, AccessType::Store, vm_addr, T, check_aligned)
+    translate_type_inner!(
+        memory_mapping,
+        map_with_access_violation_handler,
+        AccessType::Store,
+        vm_addr,
+        T,
+        check_aligned
+    )
 }
 fn translate_type<'a, T>(
     memory_mapping: &MemoryMapping,
     vm_addr: u64,
     check_aligned: bool,
 ) -> Result<&'a T, Error> {
-    translate_type_inner!(memory_mapping, AccessType::Load, vm_addr, T, check_aligned)
-        .map(|value| &*value)
+    translate_type_inner!(
+        memory_mapping,
+        map,
+        AccessType::Load,
+        vm_addr,
+        T,
+        check_aligned
+    )
+    .map(|value| &*value)
 }
 
 fn translate_slice_mut<'a, T>(
@@ -653,6 +669,7 @@ fn translate_slice_mut<'a, T>(
 ) -> Result<&'a mut [T], Error> {
     translate_slice_inner!(
         memory_mapping,
+        map_with_access_violation_handler,
         AccessType::Store,
         vm_addr,
         len,
@@ -668,6 +685,7 @@ fn translate_slice<'a, T>(
 ) -> Result<&'a [T], Error> {
     translate_slice_inner!(
         memory_mapping,
+        map,
         AccessType::Load,
         vm_addr,
         len,
@@ -2252,11 +2270,15 @@ mod tests {
         for (ok, start, length, value) in cases {
             if ok {
                 assert_eq!(
-                    translate_inner!(&memory_mapping, AccessType::Load, start, length).unwrap(),
+                    translate_inner!(&memory_mapping, map, AccessType::Load, start, length)
+                        .unwrap(),
                     value
                 )
             } else {
-                assert!(translate_inner!(&memory_mapping, AccessType::Load, start, length).is_err())
+                assert!(
+                    translate_inner!(&memory_mapping, map, AccessType::Load, start, length)
+                        .is_err()
+                )
             }
         }
     }
