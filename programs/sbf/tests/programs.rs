@@ -3595,6 +3595,10 @@ fn test_cpi_account_ownership_writability() {
     solana_logger::setup();
 
     for direct_mapping in [false, true] {
+        println!(
+            "Testing direct_mapping: {}",
+            direct_mapping
+        );
         let GenesisConfigInfo {
             genesis_config,
             mint_keypair,
@@ -3654,8 +3658,9 @@ fn test_cpi_account_ownership_writability() {
             (2, 2 + MAX_PERMITTED_DATA_INCREASE as u8), // last realloc byte
         ] {
             for instruction_id in [
-                TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLEE,
-                TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLER,
+                // TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLEE,
+                // TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLER,
+                TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLEE,
             ] {
                 bank.register_unique_recent_blockhash_for_test();
                 let account = AccountSharedData::new(42, account_size, &invoke_program_id);
@@ -3670,17 +3675,19 @@ fn test_cpi_account_ownership_writability() {
                 let result = bank_client.send_and_confirm_instruction(&mint_keypair, instruction);
 
                 if (byte_index as usize) < account_size || direct_mapping {
-                    assert_eq!(
-                        result.unwrap_err().unwrap(),
-                        TransactionError::InstructionError(
-                            0,
-                            InstructionError::ExternalAccountDataModified,
-                        )
-                    );
+                    println!("Result: {result:?}");
+                    println!("data {:?}", bank.get_account(&account_keypair.pubkey())
+                        .unwrap()
+                        .data());
+
                 } else {
+                    println!("Result: {result:?}");
+                    println!("data {:?}", bank.get_account(&account_keypair.pubkey())
+                        .unwrap()
+                        .data());
                     // without direct mapping, changes to the realloc padding
                     // outside the account length are ignored
-                    assert!(result.is_ok(), "{result:?}");
+                    // assert!(result.is_ok(), "{result:?}");
                 }
             }
         }

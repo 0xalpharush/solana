@@ -240,9 +240,7 @@ fn process_instruction(
             msg!("write account");
             const ARGUMENT_INDEX: usize = 0;
 
-            for i in 0..instruction_data[1] {
-                accounts[ARGUMENT_INDEX].data.borrow_mut()[i as usize] = instruction_data[1];
-            }
+            accounts[ARGUMENT_INDEX].data.borrow_mut()[instruction_data[1] as usize] = instruction_data[2];
         }
         CREATE_AND_INIT => {
             msg!("Create and init data");

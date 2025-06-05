@@ -931,12 +931,14 @@ fn process_instruction<'a>(
                 overwrite_account_data(account, Rc::new(RefCell::new(&mut [])));
             }
         }
-        TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLER => {
-            msg!("TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLER");
+        TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLEE => {
+            msg!("TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLEE");
             const INVOKE_PROGRAM_INDEX: usize = 3;
             let account = &accounts[ARGUMENT_INDEX];
             let invoked_program_id = accounts[INVOKED_PROGRAM_INDEX].key;
             let invoke_program_id = accounts[INVOKE_PROGRAM_INDEX].key;
+            account.data.borrow_mut().fill(0);
+            account.assign(invoked_program_id);
             invoke(
                 &create_instruction(
                     *invoked_program_id,
@@ -945,19 +947,19 @@ fn process_instruction<'a>(
                         (invoked_program_id, false, false),
                         (invoke_program_id, false, false),
                     ],
-                    vec![ASSIGN_ACCOUNT_TO_CALLER],
+                    vec![WRITE_ACCOUNT, instruction_data[1], 42],
                 ),
                 accounts,
             )
             .unwrap();
             // this should succeed since the callee gave us ownership of the
             // account
-            unsafe {
-                *account
-                    .data
-                    .borrow_mut()
-                    .get_unchecked_mut(instruction_data[1] as usize) = 42
-            };
+            // unsafe {
+            //     *account
+            //         .data
+            //         .borrow_mut()
+            //         .get_unchecked_mut(instruction_data[1] as usize) = 42
+            // };
         }
         TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS => {
             msg!("TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS");
