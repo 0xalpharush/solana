@@ -28,7 +28,8 @@ pub fn create_memory_region_of_account(
     vaddr: u64,
 ) -> Result<MemoryRegion, InstructionError> {
     let can_data_be_changed = account.can_data_be_changed().is_ok();
-    println!("Can data be changed: {can_data_be_changed}");
+    println!("create_memory_region_of_account");
+    println!("can_data_be_changedd: {can_data_be_changed}");
     println!("!account.is_shared(): {}", !account.is_shared());
     let mut memory_region = if can_data_be_changed && !account.is_shared() {
         MemoryRegion::new_writable(account.get_data_mut()?, vaddr)
