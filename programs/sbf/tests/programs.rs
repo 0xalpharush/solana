@@ -3592,7 +3592,7 @@ fn test_program_sbf_inner_instruction_alignment_checks() {
 #[test]
 #[cfg(feature = "sbf_rust")]
 fn test_cpi_account_ownership_writability() {
-    solana_logger::setup();
+    solana_logger::setup_with_default("solana_runtime=debug");
     let mut non_direct_mapping_result = false;
     for direct_mapping in [false, true] {
         println!("Testing direct_mapping: {}", direct_mapping);

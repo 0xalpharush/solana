@@ -934,11 +934,9 @@ fn process_instruction<'a>(
         TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_PROGRAM => {
             msg!("TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_PROGRAM");
             const INVOKE_PROGRAM_INDEX: usize = 3;
-            let account = &accounts[ARGUMENT_INDEX];
             let invoked_program_id = accounts[INVOKED_PROGRAM_INDEX].key;
             let invoke_program_id = accounts[INVOKE_PROGRAM_INDEX].key;
 
-            assert!(account.owner == accounts[0].key);
             assert!(accounts[0].is_signer);
             // Make payer writable
             invoke(
@@ -960,8 +958,9 @@ fn process_instruction<'a>(
                 accounts,
             )
             .unwrap();
+            msg!("Account {} owner {}", accounts[0].key, accounts[0].owner);
             // This will fail with direct mapping given its memory region was created without an access violation handler.
-            unsafe { *account.data.borrow_mut().get_unchecked_mut(0usize) = 42 };
+            unsafe { *accounts[0].data.borrow_mut().get_unchecked_mut(10419usize) = 42 };
         }
         TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS => {
             msg!("TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS");
