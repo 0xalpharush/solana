@@ -36,6 +36,7 @@ pub fn create_memory_region_of_account(
         MemoryRegion::new_readonly(account.get_data(), vaddr)
     };
     if can_data_be_changed {
+        println!("Setting access violation handler payload");
         memory_region.access_violation_handler_payload = Some(account.get_index_in_transaction());
     }
     Ok(memory_region)

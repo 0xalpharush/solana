@@ -539,6 +539,7 @@ impl TransactionContext {
                     return;
                 }
                 let Some(index_in_transaction) = region.access_violation_handler_payload else {
+                    println!("access_violation_handler_payload is None");
                     // This region is not a writable account.
                     return;
                 };

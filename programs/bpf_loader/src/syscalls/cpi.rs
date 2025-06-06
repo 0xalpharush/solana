@@ -1150,9 +1150,9 @@ fn update_caller_account_region(
             .original_data_len
             .saturating_add(MAX_PERMITTED_DATA_INCREASE)
     };
-    println!("Borrowed Account key: {}", callee_account.get_key());
-
+    
     if address_space_reserved_for_account > 0 {
+        println!("Borrowed Account key: {}", callee_account.get_key());
         // We can trust vm_data_addr to point to the correct region because we
         // enforce that in CallerAccount::from_(sol_)account_info.
         let (region_index, region) = memory_mapping
@@ -1161,7 +1161,7 @@ fn update_caller_account_region(
         // vm_data_addr must always point to the beginning of the region
         debug_assert_eq!(region.vm_addr, caller_account.vm_data_addr);
         let new_region = create_memory_region_of_account(callee_account, region.vm_addr)?;
-        println!("update_caller_account_region: is_writable={}, access={:?}", region.writable, region.access_violation_handler_payload);
+        println!("update_caller_account_region: is_writable={}, access={:?}", new_region.writable, new_region.access_violation_handler_payload);
         memory_mapping.replace_region(region_index, new_region)?;
     }
 
