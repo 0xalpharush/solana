@@ -938,6 +938,7 @@ fn process_instruction<'a>(
             let invoke_program_id = accounts[INVOKE_PROGRAM_INDEX].key;
 
             assert!(accounts[0].is_signer);
+            assert!(accounts[0].is_writable);
             // Make payer writable
             invoke(
                 &system_instruction::assign(accounts[0].key, invoked_program_id),
