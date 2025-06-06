@@ -931,33 +931,23 @@ fn process_instruction<'a>(
                 overwrite_account_data(account, Rc::new(RefCell::new(&mut [])));
             }
         }
-        TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLER => {
-            msg!("TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_CALLER");
+        TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_PROGRAM => {
+            msg!("TEST_ALLOW_WRITE_AFTER_OWNERSHIP_CHANGE_TO_PROGRAM");
             const INVOKE_PROGRAM_INDEX: usize = 3;
             let account = &accounts[ARGUMENT_INDEX];
             let invoked_program_id = accounts[INVOKED_PROGRAM_INDEX].key;
             let invoke_program_id = accounts[INVOKE_PROGRAM_INDEX].key;
-            invoke(
-                &create_instruction(
-                    *invoked_program_id,
-                    &[
-                        (accounts[ARGUMENT_INDEX].key, true, false),
-                        (invoked_program_id, false, false),
-                        (invoke_program_id, false, false),
-                    ],
-                    vec![ASSIGN_ACCOUNT_TO_CALLER],
-                ),
-                accounts,
-            )
-            .unwrap();
-            // this should succeed since the callee gave us ownership of the
-            // account
-            unsafe {
-                *account
-                    .data
-                    .borrow_mut()
-                    .get_unchecked_mut(instruction_data[1] as usize) = 42
-            };
+
+
+            assert!(account.owner == accounts[0].key);
+            assert!(accounts[0].is_signer);
+            // Make payer writable
+            invoke(&system_instruction::assign(accounts[0].key, invoke_program_id), &[accounts[0].clone()]).unwrap();
+            
+
+            // This will fail with direct mapping given its memory region was created without an access violation handler.
+            unsafe { *account.data.borrow_mut().get_unchecked_mut(0usize) = 42 };
+
         }
         TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS => {
             msg!("TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS");
