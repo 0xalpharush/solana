@@ -938,16 +938,30 @@ fn process_instruction<'a>(
             let invoked_program_id = accounts[INVOKED_PROGRAM_INDEX].key;
             let invoke_program_id = accounts[INVOKE_PROGRAM_INDEX].key;
 
-
             assert!(account.owner == accounts[0].key);
             assert!(accounts[0].is_signer);
             // Make payer writable
-            invoke(&system_instruction::assign(accounts[0].key, invoke_program_id), &[accounts[0].clone()]).unwrap();
-            
+            invoke(
+                &system_instruction::assign(accounts[0].key, invoked_program_id),
+                &[accounts[0].clone()],
+            )
+            .unwrap();
 
+            invoke(
+                &create_instruction(
+                    *invoked_program_id,
+                    &[
+                        (accounts[0].key, true, false),
+                        (invoked_program_id, false, false),
+                        (invoke_program_id, false, false),
+                    ],
+                    vec![ASSIGN_ACCOUNT_TO_CALLER],
+                ),
+                accounts,
+            )
+            .unwrap();
             // This will fail with direct mapping given its memory region was created without an access violation handler.
             unsafe { *account.data.borrow_mut().get_unchecked_mut(0usize) = 42 };
-
         }
         TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS => {
             msg!("TEST_CPI_ACCOUNT_UPDATE_CALLER_GROWS");
