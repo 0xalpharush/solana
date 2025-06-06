@@ -239,8 +239,15 @@ fn process_instruction(
         WRITE_ACCOUNT => {
             msg!("write account");
             const ARGUMENT_INDEX: usize = 0;
+            
+            let account = &accounts[ARGUMENT_INDEX];
+            unsafe {
+                *account
+                    .data
+                    .borrow_mut()
+                    .get_unchecked_mut(instruction_data[1] as usize) = 42
+            };
 
-            accounts[ARGUMENT_INDEX].data.borrow_mut()[instruction_data[1] as usize] = instruction_data[2];
         }
         CREATE_AND_INIT => {
             msg!("Create and init data");
