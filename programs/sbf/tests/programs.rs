@@ -3595,6 +3595,7 @@ fn test_cpi_account_ownership_writability() {
     solana_logger::setup();
 
     for direct_mapping in [false, true] {
+        println!("direct_mapping: {direct_mapping}");
         let GenesisConfigInfo {
             genesis_config,
             mint_keypair,
