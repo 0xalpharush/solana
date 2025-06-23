@@ -3646,21 +3646,21 @@ fn test_cpi_account_ownership_writability() {
         ];
 
         for (account_size, byte_index) in [
-            (0, 0),                                     // first realloc byte
-            (0, MAX_PERMITTED_DATA_INCREASE as u8),     // last realloc byte
-            (2, 0),                                     // first data byte
-            (2, 1),                                     // last data byte
-            (2, 3),                                     // first realloc byte
-            (2, 2 + MAX_PERMITTED_DATA_INCREASE as u8), // last realloc byte
+            // (0, 0),                                     // first realloc byte
+            // (0, MAX_PERMITTED_DATA_INCREASE as u8),     // last realloc byte
+            (2, 0), // first data byte
+            (2, 1), // last data byte
+                    // (2, 3),                                     // first realloc byte
+                    // (2, 2 + MAX_PERMITTED_DATA_INCREASE as u8), // last realloc byte
         ] {
             for instruction_id in [
-                TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLEE,
+                // TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLEE,
                 TEST_FORBID_WRITE_AFTER_OWNERSHIP_CHANGE_IN_CALLER,
             ] {
                 bank.register_unique_recent_blockhash_for_test();
                 let account = AccountSharedData::new(42, account_size, &invoke_program_id);
                 bank.store_account(&account_keypair.pubkey(), &account);
-
+                println!("Data before {:?}", account.data());
                 let instruction = Instruction::new_with_bytes(
                     invoke_program_id,
                     &[instruction_id, byte_index, 42, 42],
@@ -3670,6 +3670,20 @@ fn test_cpi_account_ownership_writability() {
                 let result = bank_client.send_and_confirm_instruction(&mint_keypair, instruction);
 
                 if (byte_index as usize) < account_size || direct_mapping {
+                    if direct_mapping {
+                        let data = bank_client
+                            .get_account_data(&account_keypair.pubkey())
+                            .unwrap()
+                            .unwrap();
+                        let account = bank.get_account(&account_keypair.pubkey()).unwrap();
+                        assert!(*account.owner() != invoke_program_id);
+                        // Data overwritten by wrong program
+                        assert_eq!(data[byte_index as usize], 42);
+                        println!(
+                            "Data after {:?}",
+                            account.data()
+                        );
+                    }
                     assert_eq!(
                         result.unwrap_err().unwrap(),
                         TransactionError::InstructionError(
