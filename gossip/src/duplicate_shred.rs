@@ -29,9 +29,6 @@ pub struct DuplicateShred {
     pub(crate) wallclock: u64,
     pub(crate) slot: Slot,
     _unused: u32,
-    // NOTE: This field was previously typed as `ShredType`.
-    // It is semantically unused, so we now deserialize it as a plain `u8`
-    // to avoid strict enum validation errors on bad data.
     _unused_shred_type: u8,
     // Serialized DuplicateSlotProof split into chunks.
     num_chunks: u8,
