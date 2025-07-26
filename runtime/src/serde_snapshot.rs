@@ -403,7 +403,7 @@ struct ExtraFieldsToDeserialize {
     #[serde(deserialize_with = "default_on_eof")]
     lamports_per_signature: u64,
     #[serde(deserialize_with = "default_on_eof")]
-    _obsolete_incremental_snapshot_persistence: Option<ObsoleteIncrementalSnapshotPersistence>,
+    _incremental_snapshot_persistence: Option<BankIncrementalSnapshotPersistence>, // obsolete
     #[serde(deserialize_with = "default_on_eof")]
     _obsolete_epoch_accounts_hash: Option<Hash>,
     #[serde(deserialize_with = "default_on_eof")]
@@ -411,7 +411,6 @@ struct ExtraFieldsToDeserialize {
     #[serde(deserialize_with = "default_on_eof")]
     accounts_lt_hash: Option<SerdeAccountsLtHash>,
 }
-
 /// Extra fields that are serialized at the end of snapshots.
 ///
 /// Note that this struct's fields should stay synced with the fields in
@@ -454,7 +453,7 @@ where
     // Process extra fields
     let ExtraFieldsToDeserialize {
         lamports_per_signature,
-        _obsolete_incremental_snapshot_persistence,
+        _incremental_snapshot_persistence,
         _obsolete_epoch_accounts_hash,
         versioned_epoch_stakes,
         accounts_lt_hash,
@@ -825,6 +824,7 @@ where
         accounts_db_config,
         accounts_update_notifier,
         exit,
+        true,
     )?;
     bank_fields.bank_hash_stats = reconstructed_accounts_db_info.bank_hash_stats;
 
@@ -987,6 +987,7 @@ fn reconstruct_accountsdb_from_fields<E>(
     accounts_db_config: Option<AccountsDbConfig>,
     accounts_update_notifier: Option<AccountsUpdateNotifier>,
     exit: Arc<AtomicBool>,
+    has_accounts_lt_hash: bool, // always true, will be removed next
 ) -> Result<(AccountsDb, ReconstructedAccountsDbInfo), Error>
 where
     E: SerializableStorage + std::marker::Sync,
