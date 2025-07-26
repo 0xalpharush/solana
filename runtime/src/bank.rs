@@ -46,7 +46,6 @@ use {
         installed_scheduler_pool::{BankWithScheduler, InstalledSchedulerRwLock},
         rent_collector::RentCollectorWithMetrics,
         runtime_config::RuntimeConfig,
-        serde_snapshot::BankIncrementalSnapshotPersistence,
         snapshot_hash::SnapshotHash,
         stake_account::StakeAccount,
         stake_weighted_timestamp::{
@@ -427,18 +426,14 @@ pub struct BankFieldsToDeserialize {
     pub collector_id: Pubkey,
     pub collector_fees: u64,
     pub fee_rate_governor: FeeRateGovernor,
-    pub collected_rent: u64,
     pub rent_collector: RentCollector,
     pub epoch_schedule: EpochSchedule,
     pub inflation: Inflation,
     pub stakes: Stakes<Delegation>,
-    pub epoch_stakes: HashMap<Epoch, EpochStakes>,
+    pub versioned_epoch_stakes: HashMap<Epoch, VersionedEpochStakes>,
     pub is_delta: bool,
     pub accounts_data_len: u64,
-    pub incremental_snapshot_persistence: Option<BankIncrementalSnapshotPersistence>,
-    pub epoch_accounts_hash: Option<Hash>,
-    // When removing the accounts lt hash featurization code, also remove this Option wrapper
-    pub accounts_lt_hash: Option<AccountsLtHash>,
+    pub accounts_lt_hash: AccountsLtHash,
     pub bank_hash_stats: BankHashStats,
 }
 

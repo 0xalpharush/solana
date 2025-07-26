@@ -227,6 +227,9 @@ impl<'a> InvokeContext<'a> {
             timings: ExecuteDetailsTimings::default(),
             syscall_context: Vec::new(),
             traces: Vec::new(),
+            #[cfg(feature = "direct_mapping")]
+            account_data_direct_mapping: true,
+            #[cfg(not(feature = "direct_mapping"))]
             account_data_direct_mapping: false,
         }
     }

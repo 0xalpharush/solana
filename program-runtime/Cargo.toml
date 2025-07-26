@@ -22,6 +22,7 @@ dummy-for-ci-check = ["metrics"]
 frozen-abi = ["dep:solana-frozen-abi", "dep:solana-frozen-abi-macro"]
 metrics = ["dep:solana-metrics"]
 shuttle-test = ["solana-type-overrides/shuttle-test", "solana-sbpf/shuttle-test"]
+direct_mapping = []
 
 [dependencies]
 base64 = { workspace = true }

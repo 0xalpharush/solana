@@ -4,7 +4,7 @@ use {
     solana_clock::Epoch,
     solana_pubkey::Pubkey,
     solana_vote::vote_account::VoteAccountsHashMap,
-    std::{collections::HashMap, sync::Arc, collections::BTreeMap},
+    std::{sync::Arc, collections::BTreeMap},
 };
 
 pub type NodeIdToVoteAccounts = BTreeMap<Pubkey, NodeVoteAccounts>;
@@ -52,7 +52,7 @@ impl VersionedEpochStakes {
                 0,
                 solana_vote::vote_account::VoteAccounts::from(Arc::new(vote_accounts_hash_map)),
                 im::OrdMap::default(),
-            ))),
+            )),
             leader_schedule_epoch,
         )
     }
