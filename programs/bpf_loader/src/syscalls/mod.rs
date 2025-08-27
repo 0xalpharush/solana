@@ -593,6 +593,7 @@ macro_rules! translate_inner {
 #[macro_export]
 macro_rules! translate_type_inner {
     ($memory_mapping:expr, $access_type:expr, $vm_addr:expr, $T:ty, $check_aligned:expr $(,)?) => {{
+        println!("vm_addr={:x}, size_of::<$T>()={}", $vm_addr, size_of::<$T>());
         let host_addr = translate_inner!(
             $memory_mapping,
             map,
@@ -600,6 +601,8 @@ macro_rules! translate_type_inner {
             $vm_addr,
             size_of::<$T>() as u64
         )?;
+        println!("translate_type_inner: check_aligned={}, host_addr={:x}, align_of={}", $check_aligned, host_addr, align_of::<$T>());
+
         if !$check_aligned {
             Ok(unsafe { std::mem::transmute::<u64, &mut $T>(host_addr) })
         } else if !address_is_aligned::<$T>(host_addr) {
@@ -620,6 +623,7 @@ macro_rules! translate_slice_inner {
         if isize::try_from(total_size).is_err() {
             return Err(SyscallError::InvalidLength.into());
         }
+        println!("translate_slice_inner: check_aligned={}, align_of={}", $check_aligned, align_of::<$T>());
         let host_addr = translate_inner!($memory_mapping, map, $access_type, $vm_addr, total_size)?;
         if $check_aligned && !address_is_aligned::<$T>(host_addr) {
             return Err(SyscallError::UnalignedPointer.into());

@@ -78,6 +78,7 @@ impl Serializer {
         stricter_abi_and_runtime_constraints: bool,
         account_data_direct_mapping: bool,
     ) -> Serializer {
+        println!("Serializer::new: strict: {}, DM: {}, size: {}, is_loader_v1 {}", stricter_abi_and_runtime_constraints, account_data_direct_mapping, size, is_loader_v1);
         Serializer {
             buffer: AlignedMemory::with_capacity(size),
             regions: Vec::new(),
