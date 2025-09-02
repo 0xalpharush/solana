@@ -403,7 +403,7 @@ struct ExtraFieldsToDeserialize {
     #[serde(deserialize_with = "default_on_eof")]
     lamports_per_signature: u64,
     #[serde(deserialize_with = "default_on_eof")]
-    _incremental_snapshot_persistence: Option<BankIncrementalSnapshotPersistence>, // obsolete
+    _incremental_snapshot_persistence: Option<ObsoleteIncrementalSnapshotPersistence>, // obsolete
     #[serde(deserialize_with = "default_on_eof")]
     _obsolete_epoch_accounts_hash: Option<Hash>,
     #[serde(deserialize_with = "default_on_eof")]
@@ -987,7 +987,7 @@ fn reconstruct_accountsdb_from_fields<E>(
     accounts_db_config: Option<AccountsDbConfig>,
     accounts_update_notifier: Option<AccountsUpdateNotifier>,
     exit: Arc<AtomicBool>,
-    has_accounts_lt_hash: bool, // always true, will be removed next
+    _has_accounts_lt_hash: bool, // always true, will be removed next
 ) -> Result<(AccountsDb, ReconstructedAccountsDbInfo), Error>
 where
     E: SerializableStorage + std::marker::Sync,

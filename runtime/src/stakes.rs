@@ -4,7 +4,7 @@
 use solana_stake_interface::state::Stake;
 use {
     crate::{stake_account, stake_history::StakeHistory},
-    im::HashMap as ImHashMap,
+    im::{HashMap as ImHashMap, OrdMap},
     log::error,
     num_derive::ToPrimitive,
     rayon::{prelude::*, ThreadPool},
@@ -262,7 +262,7 @@ impl Stakes<StakeAccount> {
     pub fn new_for_tests(
         epoch: Epoch,
         vote_accounts: VoteAccounts,
-        stake_delegations: ImHashMap<Pubkey, StakeAccount>,
+        stake_delegations: OrdMap<Pubkey, StakeAccount>,
     ) -> Self {
         Self {
             vote_accounts,
